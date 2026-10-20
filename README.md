@@ -1,8 +1,8 @@
 # CNN y RNN con Keras
 
-Este proyecto entrena una red convolucional para clasificar las diez categorias de
-ropa de Fashion-MNIST. El pipeline descarga los datos, separa entrenamiento y
-validacion de forma estratificada, entrena la CNN y guarda las metricas y el modelo.
+Este proyecto implementa dos módulos con TensorFlow/Keras: una CNN para clasificar
+Fashion-MNIST y una RNN para pronosticar temperatura con Jena Climate. Los datasets
+se descargan automáticamente y no están incluidos en la entrega.
 
 ## Preparacion
 
@@ -11,6 +11,15 @@ TensorFlow requiere una version compatible de Python. Se recomienda Python 3.12:
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+En Linux o macOS se pueden reemplazar los comandos anteriores por `python3` y
+`source .venv/bin/activate`.
+
+## Verificación rápida
+
+```powershell
+.\.venv\Scripts\python.exe -m py_compile cnn_pipeline.py cnn_experiments.py rnn_data.py rnn_pipeline.py rnn_experiments.py
 ```
 
 ## Descarga del dataset
@@ -47,16 +56,27 @@ Prueba rapida sin descarga:
 
 ```powershell
 .\.venv\Scripts\python.exe rnn_experiments.py --synthetic --limit-rows 1200 --epochs 1
-.\.venv\Scripts\python.exe build_rnn_report_assets.py --allow-synthetic
 ```
 
 Entrenamiento con Jena Climate:
 
 ```powershell
 .\.venv\Scripts\python.exe rnn_experiments.py --download --epochs 15
-.\.venv\Scripts\python.exe build_rnn_report_assets.py
 ```
 
 Los resultados se guardan en `results/rnn` y el modelo seleccionado en
 `models/rnn_forecaster.keras`. El conjunto de prueba se evalua una unica vez,
 despues de seleccionar el modelo por MAE de validacion.
+
+## Artefactos incluidos
+
+- `informe_emanuel_rebecchi.pdf`: informe final.
+- `models/cnn_fashion_mnist.keras`: modelo CNN seleccionado.
+- `models/cnn_fashion_mnist.weights.h5`: pesos de la CNN.
+- `models/rnn_forecaster.keras`: modelo RNN seleccionado.
+
+Los scripts generan automáticamente las carpetas `results/cnn` y `results/rnn`
+con las métricas e historiales de cada ejecución.
+
+Los archivos `.venv`, `.cache`, `tmp` y los datasets descargados no forman parte
+de la entrega porque se regeneran mediante los comandos anteriores.

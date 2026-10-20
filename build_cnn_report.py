@@ -212,6 +212,17 @@ document.add_paragraph(
     "superando al baseline persistente."
 )
 
+document.add_heading("Metodología general", level=1)
+document.add_paragraph(
+    "Los dos problemas se abordaron con el mismo criterio experimental: separar "
+    "entrenamiento, validación y prueba; comparar alternativas bajo condiciones "
+    "controladas; seleccionar el modelo exclusivamente con validación; y reservar "
+    "prueba para una única evaluación final. En la CNN la entrada es espacial y la "
+    "salida es una distribución entre clases. En la RNN la entrada es una secuencia "
+    "multivariada y la salida es un valor continuo futuro. Por esa diferencia se "
+    "usaron métricas y particiones específicas para cada módulo."
+)
+
 document.add_heading("Datos y partición", level=1)
 document.add_paragraph(
     "Fashion-MNIST contiene 70.000 imágenes en escala de grises de 28 por 28 píxeles. "
@@ -261,7 +272,22 @@ add_table(
     [2.45, 1.45, 3.05],
 )
 
-document.add_page_break()
+document.add_heading("Activaciones y función de pérdida", level=2)
+document.add_paragraph(
+    "ReLU se utilizó en las capas convolucionales y densas porque introduce no "
+    "linealidad sin saturar su región positiva y permite aprender jerarquías de "
+    "bordes, texturas y formas. La salida Softmax transforma los diez logits en una "
+    "distribución de probabilidades que suma uno. Sparse categorical cross-entropy "
+    "es adecuada porque cada imagen posee una sola etiqueta entera y penaliza que "
+    "el modelo asigne baja probabilidad a la clase correcta."
+)
+document.add_paragraph(
+    "Las arquitecturas se mantuvieron comparables mediante la misma partición, "
+    "semilla, tamaño de lote y cantidad máxima de épocas. Se variaron capacidad y "
+    "regularización para observar el compromiso entre sesgo y varianza sin ajustar "
+    "hiperparámetros sobre el conjunto de prueba."
+)
+
 document.add_heading("Entrenamiento y control del ajuste", level=1)
 document.add_paragraph(
     "Los tres modelos se entrenaron durante un máximo de diez épocas, con lotes de "
@@ -322,7 +348,6 @@ document.add_paragraph(
     "por la menor pérdida de validación, sin consultar el conjunto de prueba."
 )
 
-document.add_page_break()
 document.add_heading("Evaluación final", level=1)
 document.add_paragraph(
     f"El modelo seleccionado se evaluó una sola vez sobre el conjunto de prueba. "
@@ -361,13 +386,37 @@ document.add_paragraph(
 
 document.add_heading("Pronóstico temporal con RNN", level=1)
 document.add_paragraph(
-    "Jena Climate reúne mediciones meteorológicas ordenadas en el tiempo. Se tomó "
+    "Jena Climate reúne mediciones meteorológicas registradas entre 2009 y 2016. Se tomó "
     "una observación por hora y se usaron presión, temperatura, humedad relativa, "
     "velocidad y dirección del viento para pronosticar la temperatura seis horas "
     "adelante desde una ventana de 72 horas. Las 70.092 observaciones se dividieron "
     "cronológicamente en 49.064 para entrenamiento, 10.514 para validación y 10.514 "
     "para prueba. La media y el desvío se calcularon solo sobre entrenamiento para "
     "evitar que información futura contaminara el ajuste."
+)
+
+add_table(
+    document,
+    ["Variable", "Unidad", "Aporte al pronóstico"],
+    [
+        ["Presión atmosférica", "mbar", "Cambios de masas de aire"],
+        ["Temperatura", "°C", "Estado reciente y variable objetivo"],
+        ["Humedad relativa", "%", "Relación con nubosidad y amplitud térmica"],
+        ["Velocidad del viento", "m/s", "Transporte y mezcla de aire"],
+        ["Dirección del viento", "grados", "Procedencia de las masas de aire"],
+    ],
+    [2.0, 1.0, 3.95],
+)
+
+document.add_heading("Ventanas y prevención de fuga temporal", level=2)
+document.add_paragraph(
+    "Cada ejemplo contiene 72 observaciones horarias consecutivas y su etiqueta es "
+    "la temperatura ubicada seis pasos después de la última entrada. Las ventanas "
+    "se desplazan de a una hora y mantienen el orden interno de la secuencia. La "
+    "partición se realizó antes de normalizar y antes de construir ventanas, de modo "
+    "que ninguna secuencia atraviesa el límite entre entrenamiento, validación y "
+    "prueba. Mezclar las filas aleatoriamente habría permitido aprender información "
+    "del futuro y producir métricas artificialmente optimistas."
 )
 
 document.add_heading("Arquitectura y memoria temporal", level=2)
@@ -378,6 +427,29 @@ document.add_paragraph(
     "menos parámetros que una LSTM equivalente y resultó ligeramente mejor en "
     "validación. Los modelos usaron Dropout 0,2, una capa Dense de 16 unidades, "
     "salida lineal, Adam con learning rate 0,001 y clipping de norma 1,0."
+)
+
+add_table(
+    document,
+    ["Capa del modelo final", "Salida", "Función"],
+    [
+        ["Entrada", "72 x 5", "Ventana multivariada normalizada"],
+        ["GRU 64", "64", "Memoria temporal con compuertas"],
+        ["Dense 16 y ReLU", "16", "Combinación no lineal de características"],
+        ["Dense lineal", "1", "Temperatura futura normalizada"],
+    ],
+    [2.25, 1.0, 3.7],
+)
+
+document.add_heading("Retropropagación a través del tiempo", level=2)
+document.add_paragraph(
+    "Durante BPTT la red recurrente se despliega conceptualmente a lo largo de los "
+    "72 pasos y el error final se propaga hacia estados anteriores. En una RNN simple "
+    "la multiplicación repetida por matrices recurrentes puede hacer que el gradiente "
+    "tienda a cero o crezca sin control. Las compuertas de actualización y reinicio "
+    "de GRU ofrecen caminos aditivos para conservar información útil y reducen la "
+    "desaparición del gradiente. El clipping con norma máxima 1,0 limita explosiones "
+    "ocasionales sin modificar la dirección global de la actualización."
 )
 
 rnn_rows = []
@@ -432,6 +504,35 @@ right.paragraphs[0].add_run().add_picture(
     str(RNN_RESULTS / "figures" / "test_predictions.png"), width=Inches(3.35)
 )
 add_caption(document, "Figura 3  Curvas de aprendizaje y pronósticos de la GRU seleccionada")
+
+document.add_heading("Análisis de errores y limitaciones", level=2)
+document.add_paragraph(
+    "La mejora frente a persistencia demuestra que el modelo aprovecha relaciones "
+    "entre las cinco variables y no se limita a repetir la última temperatura. Sin "
+    "embargo, las predicciones son más suaves que la serie real: los cambios rápidos "
+    "y los extremos térmicos concentran los errores mayores. MSE favorece este "
+    "comportamiento porque una estimación cercana al promedio reduce el costo de "
+    "errores grandes, aunque puede atenuar picos. Como extensión se podrían comparar "
+    "MAE o Huber como pérdidas, incorporar estacionalidad explícita y evaluar varios "
+    "horizontes de pronóstico."
+)
+document.add_paragraph(
+    "La comparación también muestra que una red más grande no garantiza una mejora "
+    "proporcional. GRU 64 redujo la MAE de validación solo 0,0016 respecto de GRU 32, "
+    "pero utilizó más del triple de parámetros. Por lo tanto, GRU 32 sigue siendo una "
+    "alternativa razonable cuando importan memoria, velocidad de entrenamiento o "
+    "tamaño del modelo."
+)
+
+document.add_heading("Reproducibilidad", level=1)
+document.add_paragraph(
+    "Todos los experimentos usan semilla 42 y registran arquitectura, parámetros, "
+    "historial por época, tiempos y métricas. EarlyStopping restaura los mejores "
+    "pesos, ReduceLROnPlateau disminuye el learning rate cuando la validación se "
+    "estanca y ModelCheckpoint conserva cada candidato. Los archivos JSON y CSV "
+    "permiten regenerar tablas y figuras sin volver a entrenar. El modelo elegido se "
+    "exportó en formato Keras junto con los scripts y las dependencias declaradas."
+)
 
 document.add_heading("Conclusiones", level=1)
 add_bullet(
